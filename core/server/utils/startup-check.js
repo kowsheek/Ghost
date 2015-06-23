@@ -1,7 +1,10 @@
 var packages = require('../../../package.json'),
     path = require('path'),
     crypto = require('crypto'),
+    chalk = require('chalk'),
     fs = require('fs'),
+    semver = require('semver'),
+    packageInfo = require('../../../package.json'),
     mode = process.env.NODE_ENV === undefined ? 'development' : process.env.NODE_ENV,
     appRoot = path.resolve(__dirname, '../../../'),
     configFilePath = process.env.GHOST_CONFIG || path.join(appRoot, 'config.js'),
@@ -9,9 +12,27 @@ var packages = require('../../../package.json'),
 
 checks = {
     check: function check() {
+        this.version();
         this.packages();
         this.contentPath();
         this.sqlite();
+    },
+
+    // Tell users if their node version is not supported, and exit
+    version: function version() {
+        if (!semver.satisfies(process.versions.node, packageInfo.engines.node) &&
+            !semver.satisfies(process.versions.node, packageInfo.engines.iojs)) {
+            console.log(
+                chalk.red('\nERROR: Unsupported version of Node'),
+                chalk.red('\nGhost needs Node version'),
+                chalk.yellow(packageInfo.engines.node),
+                chalk.red('you are using version'),
+                chalk.yellow(process.versions.node),
+                chalk.green('\nPlease go to http://nodejs.org to get a supported version')
+            );
+
+            process.exit(0);
+        }
     },
 
     // Make sure package.json dependencies have been installed.
@@ -22,7 +43,7 @@ checks = {
 
         var errors = [];
 
-        Object.keys(packages.dependencies).forEach(function (p) {
+        Object.keys(packages.dependencies).forEach(function(p) {
             try {
                 require.resolve(p);
             } catch (e) {
@@ -56,7 +77,7 @@ checks = {
             fd,
             errorHeader = '\x1B[31mERROR: Unable to access Ghost\'s content path:\033[0m',
             errorHelp = '\x1B[32mCheck that the content path exists and file system permissions are correct.' +
-                '\nHelp and documentation can be found at http://support.ghost.org.\033[0m';
+            '\nHelp and documentation can be found at http://support.ghost.org.\033[0m';
 
         // Get the content path to test.  If it's defined in config.js use that, if not use the default
         try {
@@ -89,7 +110,7 @@ checks = {
 
         // Check each of the content path subdirectories
         try {
-            contentSubPaths.forEach(function (sub) {
+            contentSubPaths.forEach(function(sub) {
                 var dir = path.join(contentPath, sub),
                     randomFile = path.join(dir, crypto.randomBytes(8).toString('hex'));
 
